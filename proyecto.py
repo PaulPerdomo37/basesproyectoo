@@ -88,6 +88,78 @@ def validar_usuario(tabla, usuario, contrasena):
             cursor.close()
             conexion.close()
 # Menú de la aplicación
+def agendar_usuario(id_empleado, tipo_usuario):
+    """Asigna un empleado a una tabla específica (tipo de usuario)."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            query_buscar = "SELECT * FROM Empleado WHERE ID_Empleado = %s"
+            cursor.execute(query_buscar, (id_empleado,))
+            empleado = cursor.fetchone()
+
+            if not empleado:
+                print("No se encontró un empleado con ese ID.")
+                return
+
+            tabla = {
+                "administrador": "administradorgeneral",
+                "soporte": "soportecliente",
+                "vendedor": "vendedor",
+                "marketing": "especialistamarketing",
+                "inventario": "encargadoinventario"
+            }.get(tipo_usuario.lower())
+
+            if not tabla:
+                print("Tipo de usuario no válido.")
+                return
+
+            query_insertar = (
+                f"INSERT INTO {tabla} (ID_Empleado, Nombre, Usuario, Contrase\u00f1a, Horario) "
+                "VALUES (%s, %s, %s, %s, %s)"
+            )
+            valores = (empleado[0], empleado[1], empleado[2], empleado[3], empleado[4])
+            cursor.execute(query_insertar, valores)
+            conexion.commit()
+            print(f"Empleado agendado exitosamente en {tabla}.")
+        except mysql.connector.Error as err:
+            print(f"Error al agendar usuario: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
+def eliminar_usuario_tipo(id_empleado, tipo_usuario):
+    """Elimina un empleado de una tabla específica (tipo de usuario)."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            tabla = {
+                "administrador": "administradorgeneral",
+                "soporte": "soportecliente",
+                "vendedor": "vendedor",
+                "marketing": "especialistamarketing",
+                "inventario": "encargadoinventario"
+            }.get(tipo_usuario.lower())
+
+            if not tabla:
+                print("Tipo de usuario no válido.")
+                return
+
+            query_eliminar = f"DELETE FROM {tabla} WHERE ID_Empleado = %s"
+            cursor.execute(query_eliminar, (id_empleado,))
+            conexion.commit()
+
+            if cursor.rowcount > 0:
+                print(f"Empleado eliminado exitosamente de {tabla}.")
+            else:
+                print("No se encontró un empleado con ese ID en la tabla especificada.")
+        except mysql.connector.Error as err:
+            print(f"Error al eliminar usuario: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
 def menu_administrador():
     """Muestra el menú de administrador."""
     while True:
@@ -95,7 +167,9 @@ def menu_administrador():
         print("1. Agregar empleado")
         print("2. Listar empleados")
         print("3. Eliminar empleado")
-        print("4. Volver al menú principal")
+        print("4. Agendar empleado en tipo de usuario")
+        print("5. Eliminar empleado de tipo de usuario")
+        print("6. Volver al menú principal")
 
         opcion = input("Selecciona una opción: ")
 
@@ -111,9 +185,18 @@ def menu_administrador():
             id_empleado = int(input("ID del empleado a eliminar: "))
             eliminar_empleado(id_empleado)
         elif opcion == "4":
+            id_empleado = int(input("ID del empleado a agendar: "))
+            tipo_usuario = input("Tipo de usuario (administrador, soporte, vendedor, marketing, inventario): ")
+            agendar_usuario(id_empleado, tipo_usuario)
+        elif opcion == "5":
+            id_empleado = int(input("ID del empleado a eliminar: "))
+            tipo_usuario = input("Tipo de usuario (administrador, soporte, vendedor, marketing, inventario): ")
+            eliminar_usuario_tipo(id_empleado, tipo_usuario)
+        elif opcion == "6":
             break
         else:
             print("Opción no válida. Intenta de nuevo.")
+
 def menu_encargado_inventario():
     """Muestra el menú del encargado de inventario."""
     print("\n=== Menú Encargado de Inventario ===")
