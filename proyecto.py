@@ -1,5 +1,5 @@
 import mysql.connector
-from mysql.connector.dbapi import DATETIME
+from datetime import datetime  # Importación corregida
 
 def conectar_db():
     """Conecta a la base de datos MySQL usando XAMPP."""
@@ -237,9 +237,9 @@ def registrar_gestion(id_empleado, id_producto, descripcion):
     if conexion:
         try:
             cursor = conexion.cursor()
-            fecha_actual = DATETIME.now().strftime('%Y-%m-%d %H:%M:%S')
+            fecha_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Fecha y hora actual
             query = (
-                "INSERT INTO gestion (id_encargadodeinventario, id_producto, descripcion, fecha) "
+                "INSERT INTO gestion (id_empleado, sku, descripcion, fecha) "
                 "VALUES (%s, %s, %s, %s)"
             )
             valores = (id_empleado, id_producto, descripcion, fecha_actual)
