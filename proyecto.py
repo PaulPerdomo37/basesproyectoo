@@ -1,4 +1,5 @@
 import mysql.connector
+from mysql.connector.dbapi import DATETIME
 
 def conectar_db():
     """Conecta a la base de datos MySQL usando XAMPP."""
@@ -72,18 +73,18 @@ def eliminar_empleado(id_empleado):
             cursor.close()
             conexion.close()
 def validar_usuario(tabla, usuario, contrasena):
-    """Valida el usuario y contraseña en la tabla correspondiente."""
+    """Valida el usuario y contraseña en la tabla correspondiente y devuelve el ID del empleado."""
     conexion = conectar_db()
     if conexion:
         try:
             cursor = conexion.cursor()
-            query = f"SELECT * FROM {tabla} WHERE Usuario = %s AND Contraseña = %s"
+            query = f"SELECT ID_Empleado FROM {tabla} WHERE Usuario = %s AND Contraseña = %s"
             cursor.execute(query, (usuario, contrasena))
             resultado = cursor.fetchone()
-            return resultado is not None  # Devuelve True si el usuario existe
+            return resultado[0] if resultado else None  # Devuelve el ID si el usuario existe
         except mysql.connector.Error as err:
             print(f"Error al validar usuario: {err}")
-            return False
+            return None
         finally:
             cursor.close()
             conexion.close()
@@ -197,23 +198,6 @@ def menu_administrador():
         else:
             print("Opción no válida. Intenta de nuevo.")
 
-import mysql.connector
-from datetime import datetime
-
-def conectar_db():
-    """Conecta a la base de datos MySQL usando XAMPP."""
-    try:
-        conexion = mysql.connector.connect(
-            host="localhost",
-            user="root",  # Usuario por defecto en XAMPP
-            password="",  # Sin contraseña por defecto en XAMPP
-            database="SistemaEmpleados"  # Nombre correcto de la base de datos
-        )
-        return conexion
-    except mysql.connector.Error as err:
-        print(f"Error al conectar a la base de datos: {err}")
-        return None
-
 def obtener_producto(id_producto):
     """Obtiene un producto de la base de datos por su ID."""
     conexion = conectar_db()
@@ -247,8 +231,30 @@ def actualizar_producto(id_producto, campo, nuevo_valor):
             cursor.close()
             conexion.close()
 
+def registrar_gestion(id_empleado, id_producto, descripcion):
+    """Registra un cambio en la tabla de gestión."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            fecha_actual = DATETIME.now().strftime('%Y-%m-%d %H:%M:%S')
+            query = (
+                "INSERT INTO gestion (id_encargadodeinventario, id_producto, descripcion, fecha) "
+                "VALUES (%s, %s, %s, %s)"
+            )
+            valores = (id_empleado, id_producto, descripcion, fecha_actual)
+            cursor.execute(query, valores)
+            conexion.commit()
+            print("Gestión registrada exitosamente.")
+        except mysql.connector.Error as err:
+            print(f"Error al registrar gestión: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
 def menu_encargado_inventario():
     """Muestra el menú del encargado de inventario."""
+
     while True:
         print("\n=== Menú Encargado de Inventario ===")
         print("1. Editar un producto")
@@ -267,6 +273,8 @@ def menu_encargado_inventario():
             print("\n=== Datos del Producto ===")
             print(f"SKU: {producto[0]}\nCategoría: {producto[1]}\nNombre: {producto[2]}\nPrecio: {producto[3]}\nID Proveedor: {producto[4]}\nStock: {producto[5]}")
 
+            descripcion_cambios = []
+
             while True:
                 print("\n=== Opciones de Edición ===")
                 print("1. Editar Categoría")
@@ -281,27 +289,35 @@ def menu_encargado_inventario():
                 if opcion_editar == "1":
                     nuevo_valor = input("Nueva Categoría: ")
                     actualizar_producto(id_producto, "categoria", nuevo_valor)
+                    descripcion_cambios.append("Categoría actualizada")
                 elif opcion_editar == "2":
                     nuevo_valor = input("Nuevo Nombre: ")
                     actualizar_producto(id_producto, "nombre", nuevo_valor)
+                    descripcion_cambios.append("Nombre actualizado")
                 elif opcion_editar == "3":
                     nuevo_valor = input("Nuevo Precio: ")
                     try:
                         nuevo_valor = float(nuevo_valor)
                         actualizar_producto(id_producto, "precio", nuevo_valor)
+                        descripcion_cambios.append("Precio actualizado")
                     except ValueError:
                         print("El precio debe ser un número válido.")
                 elif opcion_editar == "4":
                     nuevo_valor = input("Nuevo ID Proveedor: ")
                     actualizar_producto(id_producto, "id_proveedor", nuevo_valor)
+                    descripcion_cambios.append("ID Proveedor actualizado")
                 elif opcion_editar == "5":
                     nuevo_valor = input("Nuevo Stock: ")
                     try:
                         nuevo_valor = int(nuevo_valor)
                         actualizar_producto(id_producto, "stock", nuevo_valor)
+                        descripcion_cambios.append("Stock actualizado")
                     except ValueError:
                         print("El stock debe ser un número entero.")
                 elif opcion_editar == "6":
+                    if descripcion_cambios:
+                        descripcion = ", ".join(descripcion_cambios)
+                        registrar_gestion(id_empleado, id_producto, descripcion)
                     print("Saliendo de edición.")
                     break
                 else:
@@ -312,6 +328,8 @@ def menu_encargado_inventario():
             break
         else:
             print("Opción no válida. Intenta de nuevo.")
+
+
 
 def menu_soporte_cliente():
     """Muestra el menú de soporte al cliente."""
@@ -337,7 +355,8 @@ def menu_principal():
         if opcion == "1":
             usuario = input("Usuario: ")
             contrasena = input("Contraseña: ")
-            if validar_usuario("administradorgeneral", usuario, contrasena):
+            id_empleado = validar_usuario("administradorgeneral", usuario, contrasena)
+            if id_empleado:
                 menu_administrador()
             else:
                 print("Usuario o contraseña incorrectos para Administrador.")
@@ -345,15 +364,17 @@ def menu_principal():
         elif opcion == "2":
             usuario = input("Usuario: ")
             contrasena = input("Contraseña: ")
-            if validar_usuario("encargadoinventario", usuario, contrasena):
-                menu_encargado_inventario()
+            id_empleado = validar_usuario("encargadoinventario", usuario, contrasena)
+            if id_empleado:
+                menu_encargado_inventario(id_empleado)
             else:
                 print("Usuario o contraseña incorrectos para Encargado de Inventario.")
 
         elif opcion == "3":
             usuario = input("Usuario: ")
             contrasena = input("Contraseña: ")
-            if validar_usuario("soportecliente", usuario, contrasena):
+            id_empleado = validar_usuario("soportecliente", usuario, contrasena)
+            if id_empleado:
                 menu_soporte_cliente()
             else:
                 print("Usuario o contraseña incorrectos para Soporte al Cliente.")
@@ -361,7 +382,8 @@ def menu_principal():
         elif opcion == "4":
             usuario = input("Usuario: ")
             contrasena = input("Contraseña: ")
-            if validar_usuario("especialistamarketing", usuario, contrasena):
+            id_empleado = validar_usuario("especialistamarketing", usuario, contrasena)
+            if id_empleado:
                 menu_especialista_marketing()
             else:
                 print("Usuario o contraseña incorrectos para Especialista en Marketing.")
