@@ -252,7 +252,7 @@ def registrar_gestion(id_empleado, id_producto, descripcion):
             cursor.close()
             conexion.close()
 
-def menu_encargado_inventario():
+def menu_encargado_inventario(id_empleado):
     """Muestra el menú del encargado de inventario."""
 
     while True:
