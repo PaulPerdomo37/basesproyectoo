@@ -197,10 +197,121 @@ def menu_administrador():
         else:
             print("Opción no válida. Intenta de nuevo.")
 
+import mysql.connector
+from datetime import datetime
+
+def conectar_db():
+    """Conecta a la base de datos MySQL usando XAMPP."""
+    try:
+        conexion = mysql.connector.connect(
+            host="localhost",
+            user="root",  # Usuario por defecto en XAMPP
+            password="",  # Sin contraseña por defecto en XAMPP
+            database="SistemaEmpleados"  # Nombre correcto de la base de datos
+        )
+        return conexion
+    except mysql.connector.Error as err:
+        print(f"Error al conectar a la base de datos: {err}")
+        return None
+
+def obtener_producto(id_producto):
+    """Obtiene un producto de la base de datos por su ID."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            query = "SELECT * FROM producto WHERE sku = %s"
+            cursor.execute(query, (id_producto,))
+            producto = cursor.fetchone()
+            return producto
+        except mysql.connector.Error as err:
+            print(f"Error al obtener producto: {err}")
+            return None
+        finally:
+            cursor.close()
+            conexion.close()
+
+def actualizar_producto(id_producto, campo, nuevo_valor):
+    """Actualiza un campo específico de un producto en la base de datos."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            query = f"UPDATE producto SET {campo} = %s WHERE sku = %s"
+            cursor.execute(query, (nuevo_valor, id_producto))
+            conexion.commit()
+            print(f"El campo '{campo}' se actualizó correctamente.")
+        except mysql.connector.Error as err:
+            print(f"Error al actualizar producto: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
 def menu_encargado_inventario():
     """Muestra el menú del encargado de inventario."""
-    print("\n=== Menú Encargado de Inventario ===")
-    print("Acceso a funciones relacionadas con el inventario aún no implementadas.")
+    while True:
+        print("\n=== Menú Encargado de Inventario ===")
+        print("1. Editar un producto")
+        print("2. Salir")
+
+        opcion = input("Selecciona una opción: ")
+
+        if opcion == "1":
+            id_producto = input("Introduce el SKU del producto a editar: ")
+            producto = obtener_producto(id_producto)
+
+            if not producto:
+                print("No se encontró un producto con ese SKU.")
+                continue
+
+            print("\n=== Datos del Producto ===")
+            print(f"SKU: {producto[0]}\nCategoría: {producto[1]}\nNombre: {producto[2]}\nPrecio: {producto[3]}\nID Proveedor: {producto[4]}\nStock: {producto[5]}")
+
+            while True:
+                print("\n=== Opciones de Edición ===")
+                print("1. Editar Categoría")
+                print("2. Editar Nombre")
+                print("3. Editar Precio")
+                print("4. Editar ID Proveedor")
+                print("5. Editar Stock")
+                print("6. Salir de Edición")
+
+                opcion_editar = input("Selecciona una opción para editar: ")
+
+                if opcion_editar == "1":
+                    nuevo_valor = input("Nueva Categoría: ")
+                    actualizar_producto(id_producto, "categoria", nuevo_valor)
+                elif opcion_editar == "2":
+                    nuevo_valor = input("Nuevo Nombre: ")
+                    actualizar_producto(id_producto, "nombre", nuevo_valor)
+                elif opcion_editar == "3":
+                    nuevo_valor = input("Nuevo Precio: ")
+                    try:
+                        nuevo_valor = float(nuevo_valor)
+                        actualizar_producto(id_producto, "precio", nuevo_valor)
+                    except ValueError:
+                        print("El precio debe ser un número válido.")
+                elif opcion_editar == "4":
+                    nuevo_valor = input("Nuevo ID Proveedor: ")
+                    actualizar_producto(id_producto, "id_proveedor", nuevo_valor)
+                elif opcion_editar == "5":
+                    nuevo_valor = input("Nuevo Stock: ")
+                    try:
+                        nuevo_valor = int(nuevo_valor)
+                        actualizar_producto(id_producto, "stock", nuevo_valor)
+                    except ValueError:
+                        print("El stock debe ser un número entero.")
+                elif opcion_editar == "6":
+                    print("Saliendo de edición.")
+                    break
+                else:
+                    print("Opción no válida. Intenta de nuevo.")
+
+        elif opcion == "2":
+            print("Saliendo del menú de inventario.")
+            break
+        else:
+            print("Opción no válida. Intenta de nuevo.")
 
 def menu_soporte_cliente():
     """Muestra el menú de soporte al cliente."""
