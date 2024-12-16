@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 15-12-2024 a las 22:44:32
+-- Tiempo de generación: 17-12-2024 a las 00:49:29
 -- Versión del servidor: 10.4.25-MariaDB
 -- Versión de PHP: 7.4.30
 
@@ -374,6 +374,18 @@ INSERT INTO `redsocial` (`ID_RedSocial`, `Nombre`, `URL`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `registroventa`
+--
+
+CREATE TABLE `registroventa` (
+  `id_venta` int(11) NOT NULL,
+  `sku_producto` varchar(50) NOT NULL,
+  `fecha` date NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `soportecliente`
 --
 
@@ -437,28 +449,12 @@ INSERT INTO `vendedor` (`ID_Empleado`, `Nombre`, `Usuario`, `Contraseña`, `Hora
 --
 
 CREATE TABLE `venta` (
-  `ID_Venta` int(11) NOT NULL,
-  `ID_Cliente` int(11) NOT NULL,
-  `Total` decimal(10,2) NOT NULL,
-  `Fecha` date NOT NULL,
-  `Estado` varchar(50) NOT NULL
+  `id_venta` int(11) NOT NULL,
+  `id_cliente` int(11) NOT NULL,
+  `id_empleado` int(11) NOT NULL,
+  `fecha` date NOT NULL,
+  `total` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
---
--- Volcado de datos para la tabla `venta`
---
-
-INSERT INTO `venta` (`ID_Venta`, `ID_Cliente`, `Total`, `Fecha`, `Estado`) VALUES
-(1, 1, '100.50', '2024-12-01', 'Pagada'),
-(2, 2, '200.00', '2024-12-02', 'Pendiente'),
-(3, 3, '150.75', '2024-12-03', 'Pagada'),
-(4, 4, '80.00', '2024-12-04', 'Cancelada'),
-(5, 5, '120.50', '2024-12-05', 'Pendiente'),
-(6, 6, '50.00', '2024-12-06', 'Pagada'),
-(7, 7, '300.25', '2024-12-07', 'Pendiente'),
-(8, 8, '90.75', '2024-12-08', 'Pagada'),
-(9, 9, '70.50', '2024-12-09', 'Cancelada'),
-(10, 10, '110.25', '2024-12-10', 'Pagada');
 
 --
 -- Índices para tablas volcadas
@@ -545,6 +541,12 @@ ALTER TABLE `redsocial`
   ADD UNIQUE KEY `URL` (`URL`);
 
 --
+-- Indices de la tabla `registroventa`
+--
+ALTER TABLE `registroventa`
+  ADD KEY `id_venta` (`id_venta`);
+
+--
 -- Indices de la tabla `soportecliente`
 --
 ALTER TABLE `soportecliente`
@@ -560,8 +562,9 @@ ALTER TABLE `vendedor`
 -- Indices de la tabla `venta`
 --
 ALTER TABLE `venta`
-  ADD PRIMARY KEY (`ID_Venta`),
-  ADD KEY `ID_Cliente` (`ID_Cliente`);
+  ADD PRIMARY KEY (`id_venta`),
+  ADD KEY `id_cliente` (`id_cliente`),
+  ADD KEY `id_empleado` (`id_empleado`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
@@ -607,7 +610,7 @@ ALTER TABLE `redsocial`
 -- AUTO_INCREMENT de la tabla `venta`
 --
 ALTER TABLE `venta`
-  MODIFY `ID_Venta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id_venta` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Restricciones para tablas volcadas
@@ -665,6 +668,12 @@ ALTER TABLE `promociona`
   ADD CONSTRAINT `promociona_ibfk_2` FOREIGN KEY (`ID_RedSocial`) REFERENCES `redsocial` (`ID_RedSocial`);
 
 --
+-- Filtros para la tabla `registroventa`
+--
+ALTER TABLE `registroventa`
+  ADD CONSTRAINT `registroventa_ibfk_1` FOREIGN KEY (`id_venta`) REFERENCES `venta` (`id_venta`);
+
+--
 -- Filtros para la tabla `soportecliente`
 --
 ALTER TABLE `soportecliente`
@@ -680,7 +689,8 @@ ALTER TABLE `vendedor`
 -- Filtros para la tabla `venta`
 --
 ALTER TABLE `venta`
-  ADD CONSTRAINT `venta_ibfk_1` FOREIGN KEY (`ID_Cliente`) REFERENCES `cliente` (`ID_Cliente`);
+  ADD CONSTRAINT `venta_ibfk_1` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`ID_Cliente`),
+  ADD CONSTRAINT `venta_ibfk_2` FOREIGN KEY (`id_empleado`) REFERENCES `vendedor` (`ID_Empleado`);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -494,6 +494,106 @@ def menu_especialista_marketing(id_empleado):
             break
         else:
             print("Opción no válida. Intenta de nuevo.")     
+
+def registrar_venta(conn, id_empleado):
+    cursor = conn.cursor()
+    print("Ingrese el ID del cliente:")
+    id_cliente = int(input())
+
+    # Insertar nueva venta
+    fecha_actual = date.today()
+    query = "INSERT INTO venta (id_cliente, id_empleado, fecha, total) VALUES (%s, %s, %s, %s)"
+    cursor.execute(query, (id_cliente, id_empleado, fecha_actual, 0))
+    id_venta = cursor.lastrowid
+    print(f"Venta creada con ID: {id_venta} y fecha: {fecha_actual}")
+    conn.commit()
+
+    total_venta = 0
+
+    # Menú de agregar/eliminar productos
+    while True:
+        print("\n1. Agregar producto")
+        print("2. Eliminar producto")
+        print("3. Salir y registrar venta")
+        opcion = input("Seleccione una opción: ")
+
+        if opcion == "1":
+            print("Ingrese el SKU del producto:")
+            sku = input()
+
+            # Obtener precio del producto
+            cursor.execute("SELECT precio FROM producto WHERE sku = %s", (sku,))
+            resultado = cursor.fetchone()
+
+            if resultado:
+                precio = resultado[0]
+                total_venta += precio
+
+                # Insertar en registroventa
+                cursor.execute("INSERT INTO registroventa (id_venta, sku_producto, fecha) VALUES (%s, %s, %s)",
+                               (id_venta, sku, fecha_actual))
+                print(f"Producto {sku} agregado con precio {precio}. Total actual: {total_venta}")
+            else:
+                print("Producto no encontrado.")
+
+        elif opcion == "2":
+            print("Ingrese el SKU del producto a eliminar:")
+            sku = input()
+
+            # Buscar si el producto existe en registroventa
+            cursor.execute("SELECT * FROM registroventa WHERE id_venta = %s AND sku_producto = %s LIMIT 1",
+                           (id_venta, sku))
+            registro = cursor.fetchone()
+
+            if registro:
+                # Obtener precio del producto
+                cursor.execute("SELECT precio FROM producto WHERE sku = %s", (sku,))
+                precio = cursor.fetchone()[0]
+                total_venta -= precio
+
+                # Eliminar producto del registroventa
+                cursor.execute("DELETE FROM registroventa WHERE id_venta = %s AND sku_producto = %s LIMIT 1",
+                               (id_venta, sku))
+                print(f"Producto {sku} eliminado. Total actual: {total_venta}")
+            else:
+                print("Producto no encontrado en esta venta.")
+
+        elif opcion == "3":
+            # Actualizar el total en la tabla venta
+            cursor.execute("UPDATE venta SET total = %s WHERE id_venta = %s", (total_venta, id_venta))
+            conn.commit()
+            print(f"Venta finalizada. Total: {total_venta}")
+            break
+        else:
+            print("Opción no válida. Inténtelo de nuevo.")
+
+    cursor.close()
+
+
+def menu_vendedor(id_empleado):
+    conn = conectar_bd()
+    if conn is None:
+        return
+
+    crear_tablas(conn)  # Asegurar existencia de tablas
+
+    while True:
+        print("\n--- MENÚ VENDEDOR ---")
+        print("1. Registrar venta")
+        print("2. Salir")
+        opcion = input("Seleccione una opción: ")
+
+        if opcion == "1":
+            registrar_venta(conn, id_empleado)
+        elif opcion == "2":
+            print("Saliendo del programa.")
+            break
+        else:
+            print("Opción no válida. Inténtelo de nuevo.")
+
+    conn.close()
+
+
 def menu_principal():
     while True:
         print("\n=== Sistema de Gestión ===")
@@ -501,7 +601,8 @@ def menu_principal():
         print("2. Ingresar como Encargado de Inventario")
         print("3. Ingresar como Soporte al Cliente")
         print("4. Ingresar como Especialista en Marketing")
-        print("5. Salir")
+        print("5. Ingresar como Vendedor")
+        print("6. Salir")
 
         opcion = input("Selecciona una opción: ")
 
@@ -540,8 +641,16 @@ def menu_principal():
                 menu_especialista_marketing(id_empleado)
             else:
                 print("Usuario o contraseña incorrectos para Especialista en Marketing.")
-
         elif opcion == "5":
+            usuario = input("Usuario: ")
+            contrasena = input("Contraseña: ")
+            id_empleado = validar_usuario("vendedor", usuario, contrasena)
+            if id_empleado:
+                menu_vendedor(id_empleado)
+            else:
+                print("Usuario o contraseña incorrectos para Vendedor.")
+
+        elif opcion == "6":
             print("Saliendo del sistema. Hasta luego!")
             break
         else:
