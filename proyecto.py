@@ -549,12 +549,3 @@ def menu_principal():
 
 if __name__ == "__main__":
     menu_principal()
-
-
-
-
-        else:
-            print("Opción no válida. Intenta de nuevo.")
-
-if __name__ == "__main__":
-    menu_principal()
