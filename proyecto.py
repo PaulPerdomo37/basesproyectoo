@@ -331,16 +331,169 @@ def menu_encargado_inventario(id_empleado):
 
 
 
-def menu_soporte_cliente():
+
+
+
+           
+def obtener_clientes_necesitan_ayuda(id_empleado):
+    """Obtiene la lista de clientes que necesitan ayuda desde la base de datos."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            query = """
+                        SELECT c.ID_Cliente, c.Nombre
+                        FROM cliente c
+                        
+                    """  
+            cursor.execute(query)
+            clientes = cursor.fetchall()
+            return clientes
+        except mysql.connector.Error as err:
+            print(f"Error al obtener clientes: {err}")
+            return None
+        finally:
+            cursor.close()
+            conexion.close()
+def eliminar_venta_cliente(id_cliente):
+    """Elimina la venta asociada a un cliente."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            query = "SELECT iD_Venta , Fecha , Estado FROM venta WHERE ID_Cliente = %s"  
+            cursor.execute(query, (id_cliente,))
+            ventas = cursor.fetchall()
+            for venta in ventas:
+                print(f"id_venta = {venta[0]} , Fecha = {venta[1]} , Estado = {venta[2]} ")
+            id_v = input("\nSelecciona el ID de la venta que quiere eliminar: ")
+            query2 = "DELETE FROM venta WHERE ID_Cliente = %s AND Id_Venta = %s"
+            cursor.execute(query2,(id_cliente,id_v))
+            conexion.commit()
+            if cursor.rowcount > 0:
+                print(f"Venta del cliente con ID {id_cliente} eliminada exitosamente.")
+                
+                
+            else:
+                print(f"No se encontró una venta asociada al cliente con ID {id_cliente}.")
+        except mysql.connector.Error as err:
+            print(f"Error al eliminar venta: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+def menu_soporte_cliente(id_empleado):
     """Muestra el menú de soporte al cliente."""
-    print("\n=== Menú Soporte al Cliente ===")
-    print("Acceso a funciones relacionadas con soporte al cliente aún no implementadas.")
+    
+    while True:
+        print("\n=== Menú Soporte al Cliente ===")
+        print("1. Elegir usuario para dar soporte")
+        print("2. Salir")
 
-def menu_especialista_marketing():
+        opcion_editar = input("Selecciona una opción: ")
+        
+        if opcion_editar == "1":
+            
+            clientes = obtener_clientes_necesitan_ayuda(id_empleado)
+            if clientes:
+                print("\n=== Clientes que necesitan ayuda ===")
+                for cliente in clientes:
+                    print(f"ID Cliente: {cliente[0]}, Nombre: {cliente[1]}")
+                
+                
+                id_cliente = input("\nSelecciona el ID del cliente para dar soporte: ")
+                try:
+                    id_cliente = int(id_cliente)
+                    eliminar_venta_cliente(id_cliente) 
+                except ValueError:
+                    print("Por favor, introduce un ID válido.")
+            else:
+                print("No hay clientes que necesiten ayuda en este momento.")
+
+        elif opcion_editar == "2":
+            print("Saliendo del menú de soporte al cliente.")
+            break
+        else:
+            print("Opción no válida. Intenta de nuevo.")
+def ver_ofertas(id_empleado):
+        conexion = conectar_db()
+        cursor = conexion.cursor()
+        query = """
+                        SELECT *
+                        FROM oferta o
+                        
+                    """  
+        cursor.execute(query)
+        ofertas = cursor.fetchall()
+        if ofertas:
+            print("\n=== Ofertas Actuales ===")
+            for oferta in ofertas:
+                print(f"ID: {oferta[0]}, Fecha Inicio: {oferta[1]}, Fecha Final: {oferta[2]}, SKU: {oferta[3]}, Descripción: {oferta[4]}, Descuento: {oferta[5]}%")
+        else:
+            print("No hay ofertas registradas.")
+
+def agregar_oferta(id_empleado):
+        conexion = conectar_db()
+        id_oferta = input("Ingrese la id_oferta: ")
+        fecha_inicio = input("Ingrese la fecha de inicio (YYYY-MM-DD): ")
+        fecha_final = input("Ingrese la fecha de finalización (YYYY-MM-DD): ")
+        sku = input("Ingrese el SKU del producto: ")
+        descripcion = input("Ingrese la descripción de la oferta: ")
+        porcentaje_descuento = float(input("Ingrese el porcentaje de descuento: "))
+        cursor = conexion.cursor()
+        cursor.execute("INSERT INTO oferta (id_oferta, fecha_inicio, fecha_final, sku, descripcion, porcentaje_descuento) VALUES (%s, %s, %s, %s, %s, %s)",
+                       (id_oferta,fecha_inicio, fecha_final, sku, descripcion, porcentaje_descuento))
+        cursor.execute("INSERT INTO gestionoferta (id_empleado, id_oferta) VALUES (%s, %s)", (id_empleado, id_oferta))
+        conexion.commit()
+        print("Oferta agregada exitosamente.")
+
+def actualizar_oferta():
+        conexion = conectar_db()
+        id_oferta = int(input("Ingrese el ID de la oferta a actualizar: "))
+        nueva_fecha_inicio = input("Ingrese la nueva fecha de inicio (YYYY-MM-DD): ")
+        nueva_fecha_final = input("Ingrese la nueva fecha de finalización (YYYY-MM-DD): ")
+        nuevo_sku = input("Ingrese el nuevo SKU del producto: ")
+        nueva_descripcion = input("Ingrese la nueva descripción de la oferta: ")
+        nuevo_porcentaje_descuento = float(input("Ingrese el nuevo porcentaje de descuento: "))
+        cursor = conexion.cursor()
+        cursor.execute("""
+            UPDATE oferta
+            SET fecha_inicio = %s, fecha_final = %s, sku = %s, descripcion = %s, porcentaje_descuento = %s
+            WHERE id_oferta = %s
+        """, (nueva_fecha_inicio, nueva_fecha_final, nuevo_sku, nueva_descripcion, nuevo_porcentaje_descuento, id_oferta))
+        conexion.commit()
+        print("Oferta actualizada exitosamente.")
+def eliminar_oferta():
+        conexion = conectar_db()
+        id_oferta = int(input("Ingrese el ID de la oferta a eliminar: "))
+        cursor = conexion.cursor()
+        cursor.execute("DELETE FROM gestionoferta WHERE id_oferta = %s", (id_oferta,))
+        conexion.commit()
+        cursor.execute("DELETE FROM oferta WHERE id_oferta = %s", (id_oferta,))
+        conexion.commit()
+        print("Oferta eliminada exitosamente.")
+def menu_especialista_marketing(id_empleado):
     """Muestra el menú del especialista en marketing."""
-    print("\n=== Menú Especialista en Marketing ===")
-    print("Acceso a funciones relacionadas con marketing aún no implementadas.")
-
+    while True:
+        print("\n=== Menú Especialista en Marketing ===")
+        print("1. ver ofertas ")
+        print("2. agregar ofertas")
+        print("3. actualizar ofertas")
+        print("4. eliminar ofertas")
+        print("5. Salir")
+        opcion = input("Selecciona una opción: ")
+        if opcion == "1":
+            ver_ofertas(id_empleado)
+        elif opcion == "2":
+            agregar_oferta(id_empleado)
+        elif opcion == "3":
+            actualizar_oferta()
+        elif opcion == "4":
+             eliminar_oferta()
+        elif opcion == "5":
+            print("Saliendo del sistema. Hasta luego!")
+            break
+        else:
+            print("Opción no válida. Intenta de nuevo.")     
 def menu_principal():
     while True:
         print("\n=== Sistema de Gestión ===")
@@ -375,7 +528,7 @@ def menu_principal():
             contrasena = input("Contraseña: ")
             id_empleado = validar_usuario("soportecliente", usuario, contrasena)
             if id_empleado:
-                menu_soporte_cliente()
+                menu_soporte_cliente(id_empleado)
             else:
                 print("Usuario o contraseña incorrectos para Soporte al Cliente.")
 
@@ -384,13 +537,22 @@ def menu_principal():
             contrasena = input("Contraseña: ")
             id_empleado = validar_usuario("especialistamarketing", usuario, contrasena)
             if id_empleado:
-                menu_especialista_marketing()
+                menu_especialista_marketing(id_empleado)
             else:
                 print("Usuario o contraseña incorrectos para Especialista en Marketing.")
 
         elif opcion == "5":
             print("Saliendo del sistema. Hasta luego!")
             break
+        else:
+            print("Opción no válida. Intenta de nuevo.")
+
+if __name__ == "__main__":
+    menu_principal()
+
+
+
+
         else:
             print("Opción no válida. Intenta de nuevo.")
 
