@@ -160,7 +160,128 @@ def eliminar_usuario_tipo(id_empleado, tipo_usuario):
         finally:
             cursor.close()
             conexion.close()
+def gestionar_registros():
+    """Permite gestionar registros de las tablas especificadas."""
+    while True:
+        print("\n=== Gestión de Registros ===")
+        print("1. Registros de gestión")
+        print("2. Registros de gestión de oferta")
+        print("3. Registros de promociona")
+        print("4. Registros de registro de venta")
+        print("5. Volver al menú anterior")
 
+        opcion_tabla = input("Selecciona una opción: ")
+
+        if opcion_tabla == "1":
+            tabla = "gestion"
+            claves_primarias = ["id_gestion"]  # Clave primaria única
+        elif opcion_tabla == "2":
+            tabla = "gestionoferta"
+            claves_primarias = ["id_empleado", "id_oferta"]  # Clave compuesta
+        elif opcion_tabla == "3":
+            tabla = "promociona"
+            claves_primarias = ["id_oferta", "id_redsocial"]  # Clave compuesta
+        elif opcion_tabla == "4":
+            tabla = "registroventa"
+            claves_primarias = ["id_venta", "sku_producto"]  # Clave compuesta
+        elif opcion_tabla == "5":
+            break
+        else:
+            print("Opción no válida. Intenta de nuevo.")
+            continue
+
+        while True:
+            print(f"\n=== Opciones para la tabla {tabla} ===")
+            print("1. Ver registros")
+            print("2. Editar registro")
+            print("3. Eliminar registro")
+            print("4. Volver al menú anterior")
+
+            opcion_accion = input("Selecciona una acción: ")
+
+            if opcion_accion == "1":
+                mostrar_tabla(tabla)
+            elif opcion_accion == "2":
+                editar_registro_compuesto(tabla, claves_primarias)
+            elif opcion_accion == "3":
+                eliminar_registro_compuesto(tabla, claves_primarias)
+            elif opcion_accion == "4":
+                break
+            else:
+                print("Opción no válida. Intenta de nuevo.")
+
+def mostrar_tabla(tabla):
+    """Muestra todos los registros de una tabla."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            query = f"SELECT * FROM {tabla}"
+            cursor.execute(query)
+            registros = cursor.fetchall()
+            print(f"\n=== Registros en la tabla {tabla} ===")
+            for registro in registros:
+                print(registro)
+        except mysql.connector.Error as err:
+            print(f"Error al mostrar registros: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
+def editar_registro_compuesto(tabla, claves_primarias):
+    """Edita un registro en la tabla especificada con claves compuestas."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            condiciones = {}
+            for clave in claves_primarias:
+                valor = input(f"Introduce el valor para {clave}: ")
+                condiciones[clave] = valor
+
+            campo = input("Introduce el campo a modificar: ")
+            nuevo_valor = input("Introduce el nuevo valor: ")
+
+            where_clause = " AND ".join([f"{clave} = %s" for clave in condiciones.keys()])
+            query = f"UPDATE {tabla} SET {campo} = %s WHERE {where_clause}"
+            cursor.execute(query, [nuevo_valor] + list(condiciones.values()))
+            conexion.commit()
+
+            if cursor.rowcount > 0:
+                print("Registro actualizado exitosamente.")
+            else:
+                print("No se encontró el registro con los valores proporcionados.")
+        except mysql.connector.Error as err:
+            print(f"Error al editar el registro: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
+def eliminar_registro_compuesto(tabla, claves_primarias):
+    """Elimina un registro de la tabla especificada con claves compuestas."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            condiciones = {}
+            for clave in claves_primarias:
+                valor = input(f"Introduce el valor para {clave}: ")
+                condiciones[clave] = valor
+
+            where_clause = " AND ".join([f"{clave} = %s" for clave in condiciones.keys()])
+            query = f"DELETE FROM {tabla} WHERE {where_clause}"
+            cursor.execute(query, list(condiciones.values()))
+            conexion.commit()
+
+            if cursor.rowcount > 0:
+                print("Registro eliminado exitosamente.")
+            else:
+                print("No se encontró el registro con los valores proporcionados.")
+        except mysql.connector.Error as err:
+            print(f"Error al eliminar el registro: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
 def menu_administrador():
     """Muestra el menú de administrador."""
     while True:
@@ -170,7 +291,8 @@ def menu_administrador():
         print("3. Eliminar empleado")
         print("4. Agendar empleado en tipo de usuario")
         print("5. Eliminar empleado de tipo de usuario")
-        print("6. Volver al menú principal")
+        print("6. Registros")
+        print("7. Volver al menu principal")
 
         opcion = input("Selecciona una opción: ")
 
@@ -194,6 +316,8 @@ def menu_administrador():
             tipo_usuario = input("Tipo de usuario (administrador, soporte, vendedor, marketing, inventario): ")
             eliminar_usuario_tipo(id_empleado, tipo_usuario)
         elif opcion == "6":
+            gestionar_registros()
+        elif opcion == "7":
             break
         else:
             print("Opción no válida. Intenta de nuevo.")
@@ -361,11 +485,11 @@ def eliminar_venta_cliente(id_cliente):
     if conexion:
         try:
             cursor = conexion.cursor()
-            query = "SELECT iD_Venta , Fecha , Estado FROM venta WHERE ID_Cliente = %s"  
+            query = "SELECT iD_Venta , Fecha FROM venta WHERE ID_Cliente = %s"  
             cursor.execute(query, (id_cliente,))
             ventas = cursor.fetchall()
             for venta in ventas:
-                print(f"id_venta = {venta[0]} , Fecha = {venta[1]} , Estado = {venta[2]} ")
+                print(f"id_venta = {venta[0]} , Fecha = {venta[1]}  ")
             id_v = input("\nSelecciona el ID de la venta que quiere eliminar: ")
             query2 = "DELETE FROM venta WHERE ID_Cliente = %s AND Id_Venta = %s"
             cursor.execute(query2,(id_cliente,id_v))
@@ -501,7 +625,7 @@ def registrar_venta(conn, id_empleado):
     id_cliente = int(input())
 
     # Insertar nueva venta
-    fecha_actual = date.today()
+    fecha_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Fecha y hora actual
     query = "INSERT INTO venta (id_cliente, id_empleado, fecha, total) VALUES (%s, %s, %s, %s)"
     cursor.execute(query, (id_cliente, id_empleado, fecha_actual, 0))
     id_venta = cursor.lastrowid
@@ -571,11 +695,9 @@ def registrar_venta(conn, id_empleado):
 
 
 def menu_vendedor(id_empleado):
-    conn = conectar_bd()
-    if conn is None:
+    conexion = conectar_db()
+    if conexion is None:
         return
-
-    crear_tablas(conn)  # Asegurar existencia de tablas
 
     while True:
         print("\n--- MENÚ VENDEDOR ---")
@@ -584,14 +706,14 @@ def menu_vendedor(id_empleado):
         opcion = input("Seleccione una opción: ")
 
         if opcion == "1":
-            registrar_venta(conn, id_empleado)
+            registrar_venta(conexion, id_empleado)
         elif opcion == "2":
             print("Saliendo del programa.")
             break
         else:
             print("Opción no válida. Inténtelo de nuevo.")
 
-    conn.close()
+    conexion.close()
 
 
 def menu_principal():
