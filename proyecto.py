@@ -53,12 +53,109 @@ def listar_empleados():
         finally:
             cursor.close()
             conexion.close()
-
-def eliminar_empleado(id_empleado):
-    """Elimina un empleado por ID."""
+def eliminarHijos(id_empleado, tabla):
     conexion = conectar_db()
     if conexion:
         try:
+            cursor = conexion.cursor()
+            
+            query_eliminar = f"DELETE FROM {tabla} WHERE id_empleado = %s"
+            cursor.execute(query_eliminar, (id_empleado,))
+            conexion.commit()
+
+            if cursor.rowcount > 0:
+                
+                return True
+            else:
+              return False  
+        except mysql.connector.Error as err:
+            print(f"Error al eliminar usuario: {err}")
+            
+        finally:
+            cursor.close()
+            conexion.close() 
+        
+
+
+def eliminar_usuario_tipo2(id_empleado, tipo_usuario):
+    """Elimina un empleado de una tabla específica (tipo de usuario)."""
+    conexion = conectar_db()
+    if not conexion:
+        return False
+
+    try:
+        cursor = conexion.cursor()
+        tablas = {
+            "administrador": "administradorgeneral",
+            "soporte": "soportecliente",
+            "vendedor": "vendedor",
+            "marketing": "especialistamarketing",
+            "inventario": "encargadoinventario",
+        }
+        tabla = tablas.get(tipo_usuario.lower())
+
+        if not tabla:
+            print("Tipo de usuario no válido.")
+            return False
+
+        
+        if tabla == "encargadoinventario":
+            eliminarHijos(id_empleado, "gestion")
+        elif tabla == "vendedor":
+            query = "SELECT ID_Venta FROM venta WHERE ID_Empleado = %s"
+            cursor.execute(query, (id_empleado,))
+            ventas = cursor.fetchall()
+            for venta in ventas:
+                eliminarHijos(venta[0], "venta")
+            eliminarHijos(id_empleado, "registroventa")
+        elif tabla == "especialistamarketing":
+            eliminarHijos(id_empleado, "gestionoferta")
+
+        # Eliminar el empleado
+        query_eliminar = f"DELETE FROM {tabla} WHERE ID_Empleado = %s"
+        cursor.execute(query_eliminar, (id_empleado,))
+        conexion.commit()
+
+        if cursor.rowcount > 0:
+            print(f"Empleado eliminado exitosamente de {tabla}.")
+            return True
+        else:
+            print("Empleado no encontrado.")
+            return False
+
+    except mysql.connector.Error as err:
+        print(f"Error al eliminar usuario: {err}")
+        return False
+
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+        return False
+
+    finally:
+        cursor.close()
+        conexion.close()
+
+
+
+def eliminar_empleado(id_empleado):
+    """Elimina un empleado por ID."""
+    tabla = {
+                "administrador": "administradorgeneral",
+                "soporte": "soportecliente",
+                "vendedor": "vendedor",
+                "marketing": "especialistamarketing",
+                "inventario": "encargadoinventario",
+            }.keys()
+    for tab in tabla:
+        o = eliminar_usuario_tipo2(id_empleado,tab)
+        
+
+    conexion = conectar_db()
+    if conexion:
+        try:
+            
+                
+
             cursor = conexion.cursor()
             query = "DELETE FROM Empleado WHERE ID_Empleado = %s"
             cursor.execute(query, (id_empleado,))
@@ -88,6 +185,26 @@ def validar_usuario(tabla, usuario, contrasena):
         finally:
             cursor.close()
             conexion.close()
+#Editar empleado
+def editar_empleado(id_empleado, nombre, usuario, contrasena, horario):
+    """Agrega un empleado a la base de datos."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            query = (
+                "UPDATE empleado SET Nombre = %s, Usuario = %s, Contraseña = %s, Horario = %s  WHERE ID_Empleado = %s"
+            )
+            valores = (nombre, usuario, contrasena, horario,id_empleado)
+            cursor.execute(query, valores)
+            conexion.commit()
+            print("Empleado editado exitosamente.")
+        except mysql.connector.Error as err:
+            print(f"Error al editado empleado: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+    
 # Menú de la aplicación
 def agendar_usuario(id_empleado, tipo_usuario):
     """Asigna un empleado a una tabla específica (tipo de usuario)."""
@@ -289,10 +406,11 @@ def menu_administrador():
         print("1. Agregar empleado")
         print("2. Listar empleados")
         print("3. Eliminar empleado")
-        print("4. Agendar empleado en tipo de usuario")
-        print("5. Eliminar empleado de tipo de usuario")
-        print("6. Registros")
-        print("7. Volver al menu principal")
+        print("4. editar empleado")
+        print("5. Agendar empleado en tipo de usuario")
+        print("6. Eliminar empleado de tipo de usuario")
+        print("7. Registros")
+        print("8. Volver al menu principal")
 
         opcion = input("Selecciona una opción: ")
 
@@ -308,16 +426,23 @@ def menu_administrador():
             id_empleado = int(input("ID del empleado a eliminar: "))
             eliminar_empleado(id_empleado)
         elif opcion == "4":
+            id_empleado = int(input("ID del empleado a editar: "))
+            Nombre = input("nuevo nombre: ")
+            Usuario = input ("Ingrese nuevo Usuario: ")
+            contraseña = input("ingrese nueva contraseña: ")
+            horario = input("ingrese nuevo Horario (ej. 08:00-17:00): ")
+            editar_empleado(id_empleado,Nombre,Usuario,contraseña,horario)
+        elif opcion == "5":
             id_empleado = int(input("ID del empleado a agendar: "))
             tipo_usuario = input("Tipo de usuario (administrador, soporte, vendedor, marketing, inventario): ")
             agendar_usuario(id_empleado, tipo_usuario)
-        elif opcion == "5":
+        elif opcion == "6":
             id_empleado = int(input("ID del empleado a eliminar: "))
             tipo_usuario = input("Tipo de usuario (administrador, soporte, vendedor, marketing, inventario): ")
             eliminar_usuario_tipo(id_empleado, tipo_usuario)
-        elif opcion == "6":
-            gestionar_registros()
         elif opcion == "7":
+            gestionar_registros()
+        elif opcion == "8":
             break
         else:
             print("Opción no válida. Intenta de nuevo.")
@@ -590,6 +715,8 @@ def eliminar_oferta():
         conexion = conectar_db()
         id_oferta = int(input("Ingrese el ID de la oferta a eliminar: "))
         cursor = conexion.cursor()
+        cursor.execute("DELETE FROM promociona WHERE id_oferta = %s", (id_oferta,))
+        conexion.commit()
         cursor.execute("DELETE FROM gestionoferta WHERE id_oferta = %s", (id_oferta,))
         conexion.commit()
         cursor.execute("DELETE FROM oferta WHERE id_oferta = %s", (id_oferta,))
