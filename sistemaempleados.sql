@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 17-12-2024 a las 00:49:29
+-- Tiempo de generación: 11-01-2025 a las 01:53:15
 -- Versión del servidor: 10.4.25-MariaDB
 -- Versión de PHP: 7.4.30
 
@@ -128,10 +128,10 @@ INSERT INTO `empleado` (`ID_Empleado`, `Nombre`, `Usuario`, `Contraseña`, `Hora
 (25, 'Miguel Campos', 'mcampos', 'password24', '07:00-16:00'),
 (26, 'Paula Ortiz', 'portiz', 'password25', '08:30-17:30'),
 (27, 'Emilio Rojas', 'erojas', 'password26', '09:00-18:00'),
-(28, 'Natalia Sánchez', 'nsanchez', 'password27', '07:30-16:30'),
 (29, 'Jorge López', 'jlopez', 'password28', '10:30-19:30'),
 (30, 'Karina Díaz', 'kdiaz', 'password29', '08:00-17:00'),
-(31, 'Esteban Vargas', 'evargas', 'password30', '09:30-18:30');
+(33, 'prueba', 'pr', 's', '08:00-12:00'),
+(35, 'p', 'p', 'p', '9:00-10:00');
 
 -- --------------------------------------------------------
 
@@ -160,7 +160,8 @@ INSERT INTO `encargadoinventario` (`ID_Empleado`, `Nombre`, `Usuario`, `Contrase
 (23, 'Camila Reyes', 'creyes', 'password22', '09:00-18:00'),
 (24, 'Juan Torres', 'jtorres', 'password23', '10:00-19:00'),
 (25, 'Miguel Campos', 'mcampos', 'password24', '07:00-16:00'),
-(26, 'Paula Ortiz', 'portiz', 'password25', '08:30-17:30');
+(26, 'Paula Ortiz', 'portiz', 'password25', '08:30-17:30'),
+(33, 'prueba', 'pr', 's', '08:00-12:00');
 
 -- --------------------------------------------------------
 
@@ -211,7 +212,9 @@ CREATE TABLE `gestion` (
 --
 
 INSERT INTO `gestion` (`id_gestion`, `id_empleado`, `sku`, `descripcion`, `fecha`) VALUES
-(1, 22, 'SKU5', 'Stock actualizado', '2024-12-15');
+(1, 22, 'SKU5', 'Stock actualizado', '2024-12-15'),
+(2, 20, 'SKU1', 'Stock actualizado y categoria tambien', '2024-12-16'),
+(3, 19, 'SKU1', 'Stock actualizado, Nombre actualizado', '2024-12-16');
 
 -- --------------------------------------------------------
 
@@ -253,7 +256,8 @@ INSERT INTO `oferta` (`id_oferta`, `fecha_inicio`, `fecha_final`, `sku`, `descri
 (7, '2024-07-01', '2024-07-31', 'SKU7', 'Oferta G', 35),
 (8, '2024-08-01', '2024-08-31', 'SKU8', 'Oferta H', 40),
 (9, '2024-09-01', '2024-09-30', 'SKU9', 'Oferta I', 45),
-(10, '2024-10-01', '2024-10-31', 'SKU10', 'Oferta J', 50);
+(10, '2024-10-01', '2024-10-31', 'SKU10', 'Oferta J', 50),
+(11, '2023-12-10', '2023-12-11', 'SKU1', 's', 0.1);
 
 -- --------------------------------------------------------
 
@@ -275,7 +279,7 @@ CREATE TABLE `producto` (
 --
 
 INSERT INTO `producto` (`sku`, `categoria`, `nombre`, `precio`, `id_proveedor`, `stock`) VALUES
-('SKU1', 'Categoria A', 'casa', '20.00', 1, 100),
+('SKU1', 'Anime', 'Mansion', '20.00', 1, 47),
 ('SKU10', 'Categoria J', 'Producto J', '100.00', 10, 1000),
 ('SKU2', 'Categoria B', 'Producto B', '20.00', 2, 2),
 ('SKU3', 'Categoria A', 'Producto C', '30.00', 3, 300),
@@ -311,8 +315,7 @@ INSERT INTO `promociona` (`id_oferta`, `ID_RedSocial`, `fecha_inicio`) VALUES
 (6, 6, '2024-06-05'),
 (7, 7, '2024-07-05'),
 (8, 8, '2024-08-05'),
-(9, 9, '2024-09-05'),
-(10, 10, '2024-10-05');
+(9, 9, '2024-02-01');
 
 -- --------------------------------------------------------
 
@@ -382,6 +385,15 @@ CREATE TABLE `registroventa` (
   `sku_producto` varchar(50) NOT NULL,
   `fecha` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Volcado de datos para la tabla `registroventa`
+--
+
+INSERT INTO `registroventa` (`id_venta`, `sku_producto`, `fecha`) VALUES
+(1, 'SKU4', '2024-12-16'),
+(2, 'SKU1', '2024-12-16'),
+(2, 'SKU10', '2024-12-16');
 
 -- --------------------------------------------------------
 
@@ -455,6 +467,14 @@ CREATE TABLE `venta` (
   `fecha` date NOT NULL,
   `total` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Volcado de datos para la tabla `venta`
+--
+
+INSERT INTO `venta` (`id_venta`, `id_cliente`, `id_empleado`, `fecha`, `total`) VALUES
+(1, 1, 1, '2024-12-16', '20.00'),
+(2, 1, 1, '2024-12-16', '120.00');
 
 --
 -- Índices para tablas volcadas
@@ -544,7 +564,8 @@ ALTER TABLE `redsocial`
 -- Indices de la tabla `registroventa`
 --
 ALTER TABLE `registroventa`
-  ADD KEY `id_venta` (`id_venta`);
+  ADD KEY `id_venta` (`id_venta`),
+  ADD KEY `sku_producto` (`sku_producto`);
 
 --
 -- Indices de la tabla `soportecliente`
@@ -580,19 +601,19 @@ ALTER TABLE `cliente`
 -- AUTO_INCREMENT de la tabla `empleado`
 --
 ALTER TABLE `empleado`
-  MODIFY `ID_Empleado` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `ID_Empleado` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT de la tabla `gestion`
 --
 ALTER TABLE `gestion`
-  MODIFY `id_gestion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_gestion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `oferta`
 --
 ALTER TABLE `oferta`
-  MODIFY `id_oferta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id_oferta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT de la tabla `proveedor`
@@ -610,7 +631,7 @@ ALTER TABLE `redsocial`
 -- AUTO_INCREMENT de la tabla `venta`
 --
 ALTER TABLE `venta`
-  MODIFY `id_venta` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_venta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Restricciones para tablas volcadas
