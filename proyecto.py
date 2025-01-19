@@ -7,8 +7,8 @@ def conectar_db():
         conexion = mysql.connector.connect(
             host="localhost",
             user="root",  # Usuario por defecto en XAMPP
-            password="",  # Sin contraseña por defecto en XAMPP
-            database="SistemaEmpleados"  # Nombre correcto de la base de datos
+            password="Elementales11",  # Sin contraseña por defecto en XAMPP
+            database="sistemaempleados"  # Nombre correcto de la base de datos
         )
         return conexion
     except mysql.connector.Error as err:
@@ -16,21 +16,48 @@ def conectar_db():
         return None
 
 def agregar_empleado(nombre, usuario, contrasena, horario):
-    """Agrega un empleado a la base de datos."""
+    """Agrega un empleado utilizando el procedimiento almacenado."""
     conexion = conectar_db()
     if conexion:
         try:
             cursor = conexion.cursor()
-            query = (
-                "INSERT INTO Empleado (Nombre, Usuario, Contraseña, Horario) "
-                "VALUES (%s, %s, %s, %s)"
-            )
-            valores = (nombre, usuario, contrasena, horario)
-            cursor.execute(query, valores)
+            cursor.callproc("sp_insert_empleado", (nombre, usuario, contrasena, horario))
             conexion.commit()
             print("Empleado agregado exitosamente.")
         except mysql.connector.Error as err:
             print(f"Error al agregar empleado: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+def editar_empleado(id_empleado, nombre, usuario, contrasena, horario):
+    """Edita un empleado utilizando el procedimiento almacenado."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            cursor.execute(
+                "CALL sp_update_empleado(%s, %s, %s, %s, %s)",
+                (id_empleado, nombre, usuario, contrasena, horario)
+            )
+            conexion.commit()
+            print("Empleado editado exitosamente.")
+        except mysql.connector.Error as err:
+            print(f"Error al editar empleado: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
+def eliminar_empleado(id_empleado):
+    """Elimina un empleado utilizando el procedimiento almacenado."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            cursor = conexion.cursor()
+            cursor.callproc("sp_delete_empleado", (id_empleado,))
+            conexion.commit()
+            print("Empleado eliminado exitosamente.")
+        except mysql.connector.Error as err:
+            print(f"Error al eliminar empleado: {err}")
         finally:
             cursor.close()
             conexion.close()
@@ -137,38 +164,7 @@ def eliminar_usuario_tipo2(id_empleado, tipo_usuario):
 
 
 
-def eliminar_empleado(id_empleado):
-    """Elimina un empleado por ID."""
-    tabla = {
-                "administrador": "administradorgeneral",
-                "soporte": "soportecliente",
-                "vendedor": "vendedor",
-                "marketing": "especialistamarketing",
-                "inventario": "encargadoinventario",
-            }.keys()
-    for tab in tabla:
-        o = eliminar_usuario_tipo2(id_empleado,tab)
-        
 
-    conexion = conectar_db()
-    if conexion:
-        try:
-            
-                
-
-            cursor = conexion.cursor()
-            query = "DELETE FROM Empleado WHERE ID_Empleado = %s"
-            cursor.execute(query, (id_empleado,))
-            conexion.commit()
-            if cursor.rowcount > 0:
-                print("Empleado eliminado exitosamente.")
-            else:
-                print("No se encontró un empleado con ese ID.")
-        except mysql.connector.Error as err:
-            print(f"Error al eliminar empleado: {err}")
-        finally:
-            cursor.close()
-            conexion.close()
 def validar_usuario(tabla, usuario, contrasena):
     """Valida el usuario y contraseña en la tabla correspondiente y devuelve el ID del empleado."""
     conexion = conectar_db()
@@ -186,24 +182,7 @@ def validar_usuario(tabla, usuario, contrasena):
             cursor.close()
             conexion.close()
 #Editar empleado
-def editar_empleado(id_empleado, nombre, usuario, contrasena, horario):
-    """Agrega un empleado a la base de datos."""
-    conexion = conectar_db()
-    if conexion:
-        try:
-            cursor = conexion.cursor()
-            query = (
-                "UPDATE empleado SET Nombre = %s, Usuario = %s, Contraseña = %s, Horario = %s  WHERE ID_Empleado = %s"
-            )
-            valores = (nombre, usuario, contrasena, horario,id_empleado)
-            cursor.execute(query, valores)
-            conexion.commit()
-            print("Empleado editado exitosamente.")
-        except mysql.connector.Error as err:
-            print(f"Error al editado empleado: {err}")
-        finally:
-            cursor.close()
-            conexion.close()
+
     
 # Menú de la aplicación
 def agendar_usuario(id_empleado, tipo_usuario):
@@ -465,13 +444,15 @@ def obtener_producto(id_producto):
             conexion.close()
 
 def actualizar_producto(id_producto, campo, nuevo_valor):
-    """Actualiza un campo específico de un producto en la base de datos."""
+    """Actualiza un campo específico de un producto utilizando un procedimiento almacenado."""
     conexion = conectar_db()
     if conexion:
         try:
             cursor = conexion.cursor()
-            query = f"UPDATE producto SET {campo} = %s WHERE sku = %s"
-            cursor.execute(query, (nuevo_valor, id_producto))
+            cursor.execute(
+                "CALL sp_update_producto(%s, %s, %s)",
+                (id_producto, campo, nuevo_valor)
+            )
             conexion.commit()
             print(f"El campo '{campo}' se actualizó correctamente.")
         except mysql.connector.Error as err:
@@ -585,17 +566,12 @@ def menu_encargado_inventario(id_empleado):
 
            
 def obtener_clientes_necesitan_ayuda(id_empleado):
-    """Obtiene la lista de clientes que necesitan ayuda desde la base de datos."""
+    """Obtiene la lista de clientes que necesitan ayuda utilizando el procedimiento almacenado."""
     conexion = conectar_db()
     if conexion:
         try:
             cursor = conexion.cursor()
-            query = """
-                        SELECT c.ID_Cliente, c.Nombre
-                        FROM cliente c
-                        
-                    """  
-            cursor.execute(query)
+            cursor.execute("CALL sp_obtener_clientes_necesitan_ayuda(%s)", (id_empleado,))
             clientes = cursor.fetchall()
             return clientes
         except mysql.connector.Error as err:
@@ -604,32 +580,43 @@ def obtener_clientes_necesitan_ayuda(id_empleado):
         finally:
             cursor.close()
             conexion.close()
+
 def eliminar_venta_cliente(id_cliente):
-    """Elimina la venta asociada a un cliente."""
+    """Elimina la venta asociada a un cliente utilizando el procedimiento almacenado."""
     conexion = conectar_db()
     if conexion:
         try:
             cursor = conexion.cursor()
-            query = "SELECT iD_Venta , Fecha FROM venta WHERE ID_Cliente = %s"  
+            # Obtener las ventas asociadas al cliente
+            query = "SELECT ID_Venta, Fecha FROM venta WHERE ID_Cliente = %s"
             cursor.execute(query, (id_cliente,))
             ventas = cursor.fetchall()
+
+            if not ventas:
+                print(f"No se encontraron ventas asociadas al cliente con ID {id_cliente}.")
+                return
+
+            # Mostrar las ventas y permitir al usuario seleccionar una
             for venta in ventas:
-                print(f"id_venta = {venta[0]} , Fecha = {venta[1]}  ")
-            id_v = input("\nSelecciona el ID de la venta que quiere eliminar: ")
-            query2 = "DELETE FROM venta WHERE ID_Cliente = %s AND Id_Venta = %s"
-            cursor.execute(query2,(id_cliente,id_v))
+                print(f"ID_Venta = {venta[0]}, Fecha = {venta[1]}")
+
+            id_v = input("\nSelecciona el ID de la venta que desea eliminar: ")
+
+            # Llamar al procedimiento almacenado para eliminar la venta
+            cursor.execute("CALL sp_eliminar_venta_cliente(%s, %s)", (id_cliente, id_v))
             conexion.commit()
+
             if cursor.rowcount > 0:
                 print(f"Venta del cliente con ID {id_cliente} eliminada exitosamente.")
-                
-                
             else:
                 print(f"No se encontró una venta asociada al cliente con ID {id_cliente}.")
+
         except mysql.connector.Error as err:
             print(f"Error al eliminar venta: {err}")
         finally:
             cursor.close()
             conexion.close()
+
 def menu_soporte_cliente(id_empleado):
     """Muestra el menú de soporte al cliente."""
     
@@ -681,47 +668,79 @@ def ver_ofertas(id_empleado):
             print("No hay ofertas registradas.")
 
 def agregar_oferta(id_empleado):
-        conexion = conectar_db()
-        id_oferta = input("Ingrese la id_oferta: ")
-        fecha_inicio = input("Ingrese la fecha de inicio (YYYY-MM-DD): ")
-        fecha_final = input("Ingrese la fecha de finalización (YYYY-MM-DD): ")
-        sku = input("Ingrese el SKU del producto: ")
-        descripcion = input("Ingrese la descripción de la oferta: ")
-        porcentaje_descuento = float(input("Ingrese el porcentaje de descuento: "))
-        cursor = conexion.cursor()
-        cursor.execute("INSERT INTO oferta (id_oferta, fecha_inicio, fecha_final, sku, descripcion, porcentaje_descuento) VALUES (%s, %s, %s, %s, %s, %s)",
-                       (id_oferta,fecha_inicio, fecha_final, sku, descripcion, porcentaje_descuento))
-        cursor.execute("INSERT INTO gestionoferta (id_empleado, id_oferta) VALUES (%s, %s)", (id_empleado, id_oferta))
-        conexion.commit()
-        print("Oferta agregada exitosamente.")
+    """Agrega una nueva oferta utilizando el procedimiento almacenado."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            id_oferta = input("Ingrese la id_oferta: ")
+            fecha_inicio = input("Ingrese la fecha de inicio (YYYY-MM-DD): ")
+            fecha_final = input("Ingrese la fecha de finalización (YYYY-MM-DD): ")
+            sku = input("Ingrese el SKU del producto: ")
+            descripcion = input("Ingrese la descripción de la oferta: ")
+            porcentaje_descuento = float(input("Ingrese el porcentaje de descuento: "))
+            
+            cursor = conexion.cursor()
+            cursor.execute(
+                "CALL sp_agregar_oferta(%s, %s, %s, %s, %s, %s, %s)",
+                (id_empleado, id_oferta, fecha_inicio, fecha_final, sku, descripcion, porcentaje_descuento)
+            )
+            conexion.commit()
+            print("Oferta agregada exitosamente.")
+        except mysql.connector.Error as err:
+            print(f"Error al agregar oferta: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
 
 def actualizar_oferta():
-        conexion = conectar_db()
-        id_oferta = int(input("Ingrese el ID de la oferta a actualizar: "))
-        nueva_fecha_inicio = input("Ingrese la nueva fecha de inicio (YYYY-MM-DD): ")
-        nueva_fecha_final = input("Ingrese la nueva fecha de finalización (YYYY-MM-DD): ")
-        nuevo_sku = input("Ingrese el nuevo SKU del producto: ")
-        nueva_descripcion = input("Ingrese la nueva descripción de la oferta: ")
-        nuevo_porcentaje_descuento = float(input("Ingrese el nuevo porcentaje de descuento: "))
-        cursor = conexion.cursor()
-        cursor.execute("""
-            UPDATE oferta
-            SET fecha_inicio = %s, fecha_final = %s, sku = %s, descripcion = %s, porcentaje_descuento = %s
-            WHERE id_oferta = %s
-        """, (nueva_fecha_inicio, nueva_fecha_final, nuevo_sku, nueva_descripcion, nuevo_porcentaje_descuento, id_oferta))
-        conexion.commit()
-        print("Oferta actualizada exitosamente.")
+    """Actualiza una oferta utilizando el procedimiento almacenado."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            id_oferta = int(input("Ingrese el ID de la oferta a actualizar: "))
+            nueva_fecha_inicio = input("Ingrese la nueva fecha de inicio (YYYY-MM-DD): ")
+            nueva_fecha_final = input("Ingrese la nueva fecha de finalización (YYYY-MM-DD): ")
+            nuevo_sku = input("Ingrese el nuevo SKU del producto: ")
+            nueva_descripcion = input("Ingrese la nueva descripción de la oferta: ")
+            nuevo_porcentaje_descuento = float(input("Ingrese el nuevo porcentaje de descuento: "))
+            
+            cursor = conexion.cursor()
+            cursor.execute(
+                "CALL sp_actualizar_oferta(%s, %s, %s, %s, %s, %s)",
+                (id_oferta, nueva_fecha_inicio, nueva_fecha_final, nuevo_sku, nueva_descripcion, nuevo_porcentaje_descuento)
+            )
+            conexion.commit()
+            print("Oferta actualizada exitosamente.")
+        except mysql.connector.Error as err:
+            print(f"Error al actualizar oferta: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
 def eliminar_oferta():
-        conexion = conectar_db()
-        id_oferta = int(input("Ingrese el ID de la oferta a eliminar: "))
-        cursor = conexion.cursor()
-        cursor.execute("DELETE FROM promociona WHERE id_oferta = %s", (id_oferta,))
-        conexion.commit()
-        cursor.execute("DELETE FROM gestionoferta WHERE id_oferta = %s", (id_oferta,))
-        conexion.commit()
-        cursor.execute("DELETE FROM oferta WHERE id_oferta = %s", (id_oferta,))
-        conexion.commit()
-        print("Oferta eliminada exitosamente.")
+    """Elimina una oferta utilizando el procedimiento almacenado con validaciones."""
+    conexion = conectar_db()
+    if conexion:
+        try:
+            id_oferta = int(input("Ingrese el ID de la oferta a eliminar: "))
+            
+            cursor = conexion.cursor()
+            cursor.execute("CALL sp_eliminar_oferta(%s)", (id_oferta,))
+            
+            # Mostrar el mensaje devuelto por el procedimiento almacenado
+            resultado = cursor.fetchall()
+            for mensaje in resultado:
+                print(mensaje[0])
+                
+            conexion.commit()
+        except mysql.connector.Error as err:
+            print(f"Error al eliminar oferta: {err}")
+        finally:
+            cursor.close()
+            conexion.close()
+
+
 def menu_especialista_marketing(id_empleado):
     """Muestra el menú del especialista en marketing."""
     while True:
