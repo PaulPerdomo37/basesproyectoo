@@ -7,9 +7,11 @@
 -- Versión del servidor: 10.4.25-MariaDB
 -- Versión de PHP: 7.4.30
 
+
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
+
 
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -19,6 +21,7 @@ SET time_zone = "+00:00";
 
 --
 -- Base de datos: `sistemaempleados`
+
 --
 
 -- --------------------------------------------------------
@@ -26,6 +29,7 @@ SET time_zone = "+00:00";
 --
 -- Estructura de tabla para la tabla `administradorgeneral`
 --
+use  sistemaemplados;
 
 CREATE TABLE `administradorgeneral` (
   `ID_Empleado` int(11) NOT NULL,
@@ -717,3 +721,405 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+-- TRIGGERS
+DELIMITER //
+-- Trigger para auditar inserciones en la tabla 'empleado'
+CREATE TRIGGER before_employee_insert
+BEFORE INSERT ON Empleado
+FOR EACH ROW
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM Empleado WHERE Horario = NEW.Horario
+    ) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ya existe un empleado con ese horario';
+    END IF;
+END //
+DELIMITER ;
+
+ drop trigger trg_after_insert_empleado;
+DELIMITER //
+-- Trigger para verificar stock al intentar realizar una venta
+CREATE TRIGGER trg_before_insert_venta
+BEFORE INSERT ON venta
+FOR EACH ROW
+BEGIN
+    DECLARE stock_actual INT;
+    SELECT Stock INTO stock_actual FROM producto WHERE ID_Producto = NEW.ID_Producto;
+    IF stock_actual < NEW.Cantidad THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Stock insuficiente para realizar la venta';
+    END IF;
+END //
+DELIMITER ;
+-- PROCEDIMIENTOS ALMACENADOS (SPs)
+select * from producto;
+-- Procedimiento para insertar un nuevo empleado
+DELIMITER //
+CREATE PROCEDURE sp_insert_empleado (
+    IN p_nombre VARCHAR(100),
+    IN p_usuario VARCHAR(50),
+    IN p_contraseña VARCHAR(255),
+    IN p_horario VARCHAR(50)
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+    INSERT INTO empleado (Nombre, Usuario, Contraseña, Horario)
+    VALUES (p_nombre, p_usuario, p_contraseña, p_horario);
+    COMMIT;
+END //
+DELIMITER ;
+
+-- Procedimiento para actualizar datos de un producto
+DELIMITER //
+CREATE PROCEDURE sp_update_producto (
+    IN p_id_producto INT,
+    IN p_nombre VARCHAR(100),
+    IN p_precio DECIMAL(10, 2),
+    IN p_stock INT
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+    UPDATE producto
+    SET Nombre = p_nombre, Precio = p_precio, Stock = p_stock
+    WHERE ID_Producto = p_id_producto;
+    COMMIT;
+END //
+DELIMITER ;
+
+-- Procedimiento para eliminar un registro de venta
+DELIMITER //
+CREATE PROCEDURE sp_delete_venta (
+    IN p_id_venta INT
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+    DELETE FROM venta WHERE ID_Venta = p_id_venta;
+    COMMIT;
+END //
+DELIMITER ;
+
+-- ÍNDICES
+
+-- Índices para optimizar consultas frecuentes
+CREATE INDEX idx_empleado_usuario ON empleado (Usuario); -- Para consultas rápidas por usuario
+CREATE INDEX idx_producto_nombre ON producto (Nombre); -- Búsqueda eficiente por nombre de producto
+CREATE INDEX idx_venta_fecha ON venta (Fecha); -- Ordenar y filtrar ventas por fecha
+CREATE INDEX idx_cliente_nombre ON cliente (Nombre); -- Consultas rápidas por cliente
+CREATE INDEX idx_registroventa_idempleado ON registroventa (id_venta);
+ -- Seguimiento de ventas por productoNombreID_EmpleadoUsuarioContraseñaHorario
+ALTER TABLE registroventa DROP INDEX idx_registroventa_idempleado;
+
+-- USUARIOS Y PERMISOS
+
+-- Crear usuarios
+CREATE USER 'user_marketing'@'localhost' IDENTIFIED BY 'password123';
+CREATE USER 'user_inventario'@'localhost' IDENTIFIED BY 'password123';
+CREATE USER 'user_ventas'@'localhost' IDENTIFIED BY 'password123';
+CREATE USER 'user_cliente'@'localhost' IDENTIFIED BY 'password123';
+CREATE USER 'user_auditor'@'localhost' IDENTIFIED BY 'password123';
+
+-- Asignar permisos
+GRANT EXECUTE ON PROCEDURE sp_insert_empleado TO 'user_marketing'@'localhost'; -- Permiso para insertar empleados
+GRANT EXECUTE ON PROCEDURE sp_update_producto TO 'user_inventario'@'localhost'; -- Permiso para actualizar productos
+
+GRANT SELECT ON empleado TO 'user_auditor'@'localhost'; -- Permiso para auditar empleados
+GRANT SELECT ON cliente TO 'user_cliente'@'localhost'; -- Permiso para ver información de clientes
+-- Permiso para ver ventas (para el usuario 'user_ventas')
+GRANT SELECT ON vista_ventas_vendedores TO 'user_ventas'@'localhost'; 
+
+-- Permiso para ver ofertas (para el usuario 'user_marketing')
+GRANT SELECT ON vista_ofertas_promocion TO 'user_marketing'@'localhost'; 
+
+GRANT SELECT, INSERT ON venta TO 'user_ventas'@'localhost'; -- Permisos para gestionar ventas
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_delete_empleado (
+    IN p_id_empleado INT
+)
+BEGIN
+    DECLARE count INT;
+
+    -- Verificar si el empleado existe en la tabla principal 'empleado'
+    IF EXISTS (SELECT 1 FROM empleado WHERE ID_Empleado = p_id_empleado) THEN
+        
+        -- Verificar si el empleado tiene un rol de administrador
+        IF EXISTS (SELECT 1 FROM administradorgeneral WHERE ID_Empleado = p_id_empleado) THEN
+            DELETE FROM administradorgeneral WHERE ID_Empleado = p_id_empleado;
+        END IF;
+
+        -- Verificar si el empleado tiene un rol de soporte
+        IF EXISTS (SELECT 1 FROM soportecliente WHERE ID_Empleado = p_id_empleado) THEN
+            DELETE FROM soportecliente WHERE ID_Empleado = p_id_empleado;
+        END IF;
+
+        -- Verificar si el empleado tiene un rol de vendedor y dependencias
+        IF EXISTS (SELECT 1 FROM vendedor WHERE ID_Empleado = p_id_empleado) THEN
+            -- Verificar si tiene ventas asociadas
+            IF EXISTS (SELECT 1 FROM venta WHERE ID_Empleado = p_id_empleado) THEN
+                DELETE FROM venta WHERE ID_Empleado = p_id_empleado;
+                DELETE FROM registroventa WHERE ID_Empleado = p_id_empleado;
+            END IF;
+            DELETE FROM vendedor WHERE ID_Empleado = p_id_empleado;
+        END IF;
+
+        -- Verificar si el empleado tiene un rol de marketing y dependencias
+        IF EXISTS (SELECT 1 FROM especialistamarketing WHERE ID_Empleado = p_id_empleado) THEN
+            -- Verificar si tiene ofertas asociadas
+            IF EXISTS (SELECT 1 FROM gestionoferta WHERE ID_Empleado = p_id_empleado) THEN
+                DELETE FROM gestionoferta WHERE ID_Empleado = p_id_empleado;
+            END IF;
+            DELETE FROM especialistamarketing WHERE ID_Empleado = p_id_empleado;
+        END IF;
+
+        -- Verificar si el empleado tiene un rol de inventario y dependencias
+        IF EXISTS (SELECT 1 FROM encargadoinventario WHERE ID_Empleado = p_id_empleado) THEN
+            -- Verificar si tiene gestión asociada
+            IF EXISTS (SELECT 1 FROM gestion WHERE ID_Empleado = p_id_empleado) THEN
+                DELETE FROM gestion WHERE ID_Empleado = p_id_empleado;
+            END IF;
+            DELETE FROM encargadoinventario WHERE ID_Empleado = p_id_empleado;
+        END IF;
+
+        -- Finalmente eliminar el empleado de la tabla principal
+        DELETE FROM empleado WHERE ID_Empleado = p_id_empleado;
+
+    ELSE
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Empleado no encontrado';
+    END IF;
+
+END$$
+
+DELIMITER ;
+DELIMITER $$
+
+CREATE PROCEDURE listar_empleados()
+BEGIN
+    -- Seleccionar todos los empleados
+    SELECT ID_Empleado, Nombre, Usuario, Horario
+    FROM Empleado;
+END$$
+
+DELIMITER ;
+DELIMITER $$
+
+CREATE PROCEDURE sp_update_empleado(
+    IN p_id_empleado INT,
+    IN p_nombre VARCHAR(255),
+    IN p_usuario VARCHAR(255),
+    IN p_contrasena VARCHAR(255),
+    IN p_horario VARCHAR(255)
+)
+BEGIN
+    -- Actualizar los datos del empleado en la tabla 'Empleado'
+    UPDATE Empleado
+    SET 
+        Nombre = p_nombre,
+        Usuario = p_usuario,
+        Contrasena = p_contrasena,
+        Horario = p_horario
+    WHERE ID_Empleado = p_id_empleado;
+    
+    -- Verificar si la actualización fue exitosa
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Empleado no encontrado';
+    END IF;
+END$$
+
+DELIMITER ;
+DELIMITER $$
+
+CREATE PROCEDURE sp_obtener_clientes_necesitan_ayuda(
+    IN p_id_empleado INT
+)
+BEGIN
+    -- Esta consulta puede ser adaptada según las necesidades del negocio
+    -- Por ejemplo, solo se traen clientes con ciertas condiciones
+    SELECT c.ID_Cliente, c.Nombre
+    FROM cliente c
+    WHERE c.ID_Empleado = p_id_empleado; -- Ajusta la lógica según las reglas de negocio
+
+END$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_eliminar_venta_cliente(
+    IN p_id_cliente INT,
+    IN p_id_venta INT
+)
+BEGIN
+    -- Eliminar la venta asociada al cliente
+    DELETE FROM venta WHERE ID_Cliente = p_id_cliente AND ID_Venta = p_id_venta;
+    
+    -- Verificar si se eliminó la venta
+    IF ROW_COUNT() = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No se encontró una venta asociada al cliente';
+    END IF;
+END$$
+
+DELIMITER ;
+DELIMITER $$
+
+CREATE PROCEDURE sp_agregar_oferta(
+    IN p_id_empleado INT,
+    IN p_id_oferta INT,
+    IN p_fecha_inicio DATE,
+    IN p_fecha_final DATE,
+    IN p_sku VARCHAR(50),
+    IN p_descripcion TEXT,
+    IN p_porcentaje_descuento DECIMAL(5,2)
+)
+BEGIN
+    -- Insertar en la tabla oferta
+    INSERT INTO oferta (id_oferta, fecha_inicio, fecha_final, sku, descripcion, porcentaje_descuento)
+    VALUES (p_id_oferta, p_fecha_inicio, p_fecha_final, p_sku, p_descripcion, p_porcentaje_descuento);
+
+    -- Insertar en la tabla gestionoferta
+    INSERT INTO gestionoferta (id_empleado, id_oferta)
+    VALUES (p_id_empleado, p_id_oferta);
+    
+END$$
+
+DELIMITER ;
+DELIMITER $$
+
+CREATE PROCEDURE sp_actualizar_oferta(
+    IN p_id_oferta INT,
+    IN p_nueva_fecha_inicio DATE,
+    IN p_nueva_fecha_final DATE,
+    IN p_nuevo_sku VARCHAR(50),
+    IN p_nueva_descripcion TEXT,
+    IN p_nuevo_porcentaje_descuento DECIMAL(5,2)
+)
+BEGIN
+    -- Actualizar los detalles de la oferta
+    UPDATE oferta
+    SET 
+        fecha_inicio = p_nueva_fecha_inicio,
+        fecha_final = p_nueva_fecha_final,
+        sku = p_nuevo_sku,
+        descripcion = p_nueva_descripcion,
+        porcentaje_descuento = p_nuevo_porcentaje_descuento
+    WHERE id_oferta = p_id_oferta;
+END$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_eliminar_oferta(
+    IN p_id_oferta INT
+)
+BEGIN
+    -- Verificar si la oferta existe en la tabla promociona
+    IF EXISTS (SELECT 1 FROM promociona WHERE id_oferta = p_id_oferta) THEN
+        DELETE FROM promociona WHERE id_oferta = p_id_oferta;
+        SELECT 'Oferta eliminada de promociona' AS mensaje;
+    ELSE
+        SELECT 'La oferta no existe en la tabla promociona' AS mensaje;
+    END IF;
+    
+    -- Verificar si la oferta existe en la tabla gestionoferta
+    IF EXISTS (SELECT 1 FROM gestionoferta WHERE id_oferta = p_id_oferta) THEN
+        DELETE FROM gestionoferta WHERE id_oferta = p_id_oferta;
+        SELECT 'Oferta eliminada de gestionoferta' AS mensaje;
+    ELSE
+        SELECT 'La oferta no existe en la tabla gestionoferta' AS mensaje;
+    END IF;
+    
+    -- Verificar si la oferta existe en la tabla oferta
+    IF EXISTS (SELECT 1 FROM oferta WHERE id_oferta = p_id_oferta) THEN
+        DELETE FROM oferta WHERE id_oferta = p_id_oferta;
+        SELECT 'Oferta eliminada de oferta' AS mensaje;
+    ELSE
+        SELECT 'La oferta no existe en la tabla oferta' AS mensaje;
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+
+CREATE VIEW vista_gestion_inventario AS
+SELECT 
+    e.Nombre AS Nombre_Empleado,
+    p.Nombre AS Nombre_Producto,
+    p.Stock AS Stock_Actual
+FROM empleado e
+JOIN encargadoinventario ei ON e.ID_Empleado = ei.ID_Empleado
+JOIN gestion g ON ei.ID_Empleado = g.id_empleado
+JOIN producto p ON g.sku = p.sku;
+
+
+
+
+CREATE VIEW vista_ofertas_promocion AS
+SELECT 
+    o.id_oferta AS ID_Oferta,
+    o.Descripcion AS Descripcion_Oferta,
+    p.Nombre AS Nombre_Producto,
+    r.Nombre AS Red_Social
+FROM oferta o
+JOIN producto p ON o.sku = p.sku
+JOIN promociona pr ON o.id_oferta = pr.id_oferta
+JOIN redsocial r ON pr.ID_RedSocial = r.ID_RedSocial;
+CREATE VIEW vista_ventas_vendedores AS
+SELECT 
+    v.ID_Venta,
+    v.ID_Empleado AS ID_Vendedor,
+    e.Nombre AS Nombre_Vendedor,
+    c.Nombre AS Nombre_Cliente
+FROM venta v
+JOIN vendedor e ON v.ID_Empleado = e.ID_Empleado
+JOIN cliente c ON v.ID_Cliente = c.ID_Cliente;
+
+
+CREATE VIEW vista_ventas_productos_cliente AS
+SELECT 
+    v.id_venta,
+    v.fecha AS Fecha_Venta,
+    v.total AS Total_Venta,
+    rv.sku_producto,
+    rv.fecha AS Fecha_Registro_Producto,
+    c.ID_Cliente,
+    c.Nombre AS Nombre_Cliente
+FROM 
+    venta v
+JOIN 
+    registroventa rv ON v.id_venta = rv.id_venta
+JOIN 
+    cliente c ON v.id_cliente = c.ID_Cliente;
+
+
+
+
+
+
+
+
+
+
+
